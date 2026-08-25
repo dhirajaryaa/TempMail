@@ -8,8 +8,12 @@ export function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    setIsDark(document.documentElement.classList.contains("dark"));
+    // Defer the execution to the next frame to avoid synchronous setState inside render loop
+    const frame = requestAnimationFrame(() => {
+      setMounted(true);
+      setIsDark(document.documentElement.classList.contains("dark"));
+    });
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   const toggle = () => {

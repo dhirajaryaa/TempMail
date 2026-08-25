@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Shield, Zap, Clock, Timer } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Shield, Zap, Clock, Timer, AlertCircle } from "lucide-react";
 import { DURATION_OPTIONS } from "@/lib/mail-api";
 import type { DurationMinutes } from "@/lib/mail-api";
 import { GenerateButton } from "@/components/generate-button";
@@ -11,6 +11,9 @@ export function StaticLanding() {
   const [selectedDuration, setSelectedDuration] = useState<DurationMinutes>(5);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const isExpired = searchParams.get("expired") === "true";
 
   const handleGenerate = () => {
     setIsRedirecting(true);
@@ -20,10 +23,17 @@ export function StaticLanding() {
   return (
     <main className="flex-1 flex flex-col items-center justify-center px-4 py-12">
       <div className="max-w-2xl w-full text-center animate-fade-in">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent-muted border border-accent-border text-accent text-xs font-medium mb-6">
-          <Shield className="w-3 h-3" />
-          Privacy-first • No signup required
-        </div>
+        {isExpired ? (
+          <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-danger/10 border border-danger/20 text-danger text-sm font-medium mb-6">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>Your email session expired. Generate a new mailbox below.</span>
+          </div>
+        ) : (
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent-muted border border-accent-border text-accent text-xs font-medium mb-6">
+            <Shield className="w-3 h-3" />
+            Privacy-first • No signup required
+          </div>
+        )}
 
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4 text-foreground">
           Instant Disposable Email

@@ -61,7 +61,11 @@ export function ActiveSession({
 
   // Poll every 10 seconds
   useEffect(() => {
-    fetchMessages();
+    // Defer the initial execution to a microtask to prevent synchronous setState inside the effect body
+    Promise.resolve().then(() => {
+      fetchMessages();
+    });
+
     pollingRef.current = setInterval(fetchMessages, 10000);
 
     return () => {

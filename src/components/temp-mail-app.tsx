@@ -7,10 +7,9 @@ import { DURATION_OPTIONS } from "@/lib/mail-api";
 import { Header } from "@/components/header";
 import { LandingSection } from "@/components/landing-section";
 import { ActiveSession } from "@/components/active-session";
-import { ExpiredSection } from "@/components/expired-section";
 import { Loader2 } from "lucide-react";
 
-type AppState = "landing" | "active" | "expired";
+type AppState = "landing" | "active";
 
 const STORAGE_KEY = "tempmail_session";
 
@@ -72,9 +71,7 @@ export function TempMailApp() {
             setIsRestoring(false);
             return;
           } else {
-            // Either expired or user explicitly requested a new mailbox
             localStorage.removeItem(STORAGE_KEY);
-            // Clean up the old session on the server
             await fetch("/api/cleanup", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -103,7 +100,7 @@ export function TempMailApp() {
           setSelectedDuration(initialDuration);
           await generateEmail(initialDuration);
 
-          // Clear the "new=true" parameter from URL so reload restores the new session
+          // Clear parameters from URL
           if (shouldBypass) {
             const params = new URLSearchParams(searchParams.toString());
             params.delete("new");
@@ -121,10 +118,10 @@ export function TempMailApp() {
     initSession();
   }, [searchParams, generateEmail, router]);
 
-  // Handle session expiry
+  // Handle session expiry — automatically redirect to home page
   const handleExpire = useCallback(async () => {
-    setAppState("expired");
     localStorage.removeItem(STORAGE_KEY);
+    router.push("/?expired=true");
 
     if (session) {
       try {
@@ -140,12 +137,12 @@ export function TempMailApp() {
         // best effort cleanup
       }
     }
-  }, [session]);
+  }, [session, router]);
 
-  // Cancel/Delete session manually
+  // Cancel/Delete session manually — redirect to home page
   const handleCancel = useCallback(async () => {
-    setAppState("landing");
     localStorage.removeItem(STORAGE_KEY);
+    router.push("/");
 
     if (session) {
       try {
@@ -162,9 +159,9 @@ export function TempMailApp() {
       }
     }
     setSession(null);
-  }, [session]);
+  }, [session, router]);
 
-  // Reset/Logo click handler - redirect to static homepage
+  // Reset/Logo click handler
   const handleLogoClick = useCallback(() => {
     if (appState === "active") {
       if (confirm("Return to home? This will keep your active mailbox running in the background.")) {
@@ -174,12 +171,6 @@ export function TempMailApp() {
       router.push("/");
     }
   }, [appState, router]);
-
-  // Regenerate from expired state
-  const handleRegenerate = useCallback(() => {
-    setAppState("landing");
-    generateEmail();
-  }, [generateEmail]);
 
   if (isRestoring || (appState === "landing" && isGenerating && !session)) {
     return (
@@ -203,19 +194,6 @@ export function TempMailApp() {
           onGenerate={generateEmail}
           isGenerating={isGenerating}
           error={error}
-        />
-      </>
-    );
-  }
-
-  // ── EXPIRED ──
-  if (appState === "expired") {
-    return (
-      <>
-        <Header onLogoClick={handleLogoClick} />
-        <ExpiredSection
-          onRegenerate={handleRegenerate}
-          isGenerating={isGenerating}
         />
       </>
     );
