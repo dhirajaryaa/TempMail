@@ -66,14 +66,72 @@ export interface TempMailSession {
   durationMinutes: number; // chosen duration
 }
 
-// Generate a random string for email username
-function generateRandomUsername(length = 10): string {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+// Common first and last names for realistic email generation
+const FIRST_NAMES = [
+  "james", "john", "robert", "michael", "david", "william", "richard", "joseph",
+  "thomas", "daniel", "matthew", "andrew", "joshua", "christopher", "anthony",
+  "mary", "patricia", "jennifer", "linda", "elizabeth", "barbara", "susan",
+  "sarah", "karen", "nancy", "lisa", "betty", "helen", "sandra", "donna",
+  "alex", "sam", "jordan", "taylor", "morgan", "casey", "riley", "avery",
+  "charlie", "logan", "parker", "quinn", "blake", "drew", "jamie", "robin",
+  "mark", "paul", "steven", "kevin", "brian", "george", "edward", "jason",
+  "ryan", "jacob", "gary", "timothy", "larry", "jeffrey", "frank", "scott",
+  "eric", "stephen", "raymond", "gregory", "benjamin", "patrick", "jack",
+  "emma", "olivia", "sophia", "isabella", "charlotte", "amelia", "harper",
+  "evelyn", "abigail", "emily", "madison", "chloe", "grace", "victoria",
+  "anna", "natalie", "hannah", "lily", "ella", "aria", "mia", "layla",
+];
+
+const LAST_NAMES = [
+  "smith", "johnson", "williams", "brown", "jones", "garcia", "miller",
+  "davis", "rodriguez", "martinez", "hernandez", "lopez", "gonzalez",
+  "wilson", "anderson", "thomas", "taylor", "moore", "jackson", "martin",
+  "lee", "perez", "thompson", "white", "harris", "sanchez", "clark",
+  "ramirez", "lewis", "robinson", "walker", "young", "allen", "king",
+  "wright", "scott", "torres", "nguyen", "hill", "flores", "green",
+  "adams", "nelson", "baker", "hall", "rivera", "campbell", "mitchell",
+  "carter", "roberts", "turner", "phillips", "evans", "collins", "stewart",
+  "morris", "reed", "cook", "morgan", "bell", "murphy", "bailey", "cooper",
+  "ward", "cox", "diaz", "richardson", "wood", "watson", "brooks", "bennett",
+  "gray", "james", "reyes", "cruz", "hughes", "price", "myers", "long",
+  "foster", "sanders", "ross", "powell", "sullivan", "russell", "ortiz",
+];
+
+// Separators used between name parts
+const SEPARATORS = [".", "_", ""];
+
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function randDigits(min: number, max: number): string {
+  const len = min + Math.floor(Math.random() * (max - min + 1));
   let result = "";
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  for (let i = 0; i < len; i++) {
+    result += Math.floor(Math.random() * 10).toString();
   }
   return result;
+}
+
+// Generate a realistic-looking email username
+// Patterns: john.smith, john.smith92, jsmith, john_smith7, smithjohn3, etc.
+function generateRandomUsername(): string {
+  const first = pick(FIRST_NAMES);
+  const last = pick(LAST_NAMES);
+  const sep = pick(SEPARATORS);
+  const addDigits = Math.random() > 0.35; // 65% chance of digits
+  const digits = addDigits ? randDigits(1, 3) : "";
+
+  const patterns = [
+    () => `${first}${sep}${last}${digits}`,          // john.smith92
+    () => `${first[0]}${last}${digits}`,              // jsmith7
+    () => `${last}${sep}${first}${digits}`,           // smith.john3
+    () => `${first}${digits}`,                        // john92
+    () => `${first}${sep}${last[0]}${digits}`,        // john.s42
+    () => `${last}${first[0]}${digits}`,              // smithj5
+  ];
+
+  return pick(patterns)();
 }
 
 // Generate a random password

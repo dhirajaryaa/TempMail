@@ -50,7 +50,7 @@ export function EmailDisplay({
         <button
           onClick={onNewEmail}
           disabled={isGenerating}
-          className="p-3 rounded-xl bg-input-bg border border-input-border text-muted hover:text-accent hover:border-accent-border transition-all disabled:opacity-50 shrink-0"
+          className="p-4 rounded-xl bg-input-bg border border-input-border text-muted hover:text-accent hover:border-accent-border transition-all disabled:opacity-50 shrink-0"
           title="Generate new email"
         >
           <RefreshCw
