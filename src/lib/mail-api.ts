@@ -272,29 +272,52 @@ export async function createTempMailSession(
     throw new Error("No active domains available");
   }
 
-  // 2. Pick a random domain
-  const domain =
-    activeDomains[Math.floor(Math.random() * activeDomains.length)];
+  let attempts = 0;
+  const maxAttempts = 4;
+  let lastError: Error | null = null;
 
-  // 3. Generate random credentials
-  const username = generateRandomUsername();
-  const password = generateRandomPassword();
-  const address = `${username}@${domain.domain}`;
+  while (attempts < maxAttempts) {
+    attempts++;
 
-  // 4. Create account
-  const account = await createAccount(address, password);
+    // 2. Pick a random domain
+    const domain =
+      activeDomains[Math.floor(Math.random() * activeDomains.length)];
 
-  // 5. Get auth token
-  const tokenData = await getToken(address, password);
+    // 3. Generate random credentials
+    let username = generateRandomUsername();
+    if (attempts > 1) {
+      username += randDigits(2, 4);
+    }
 
-  // 6. Set expiry based on chosen duration
-  const expiresAt = Date.now() + durationMinutes * 60 * 1000;
+    const password = generateRandomPassword();
+    const address = `${username}@${domain.domain}`;
 
-  return {
-    account,
-    token: tokenData.token,
-    password,
-    expiresAt,
-    durationMinutes,
-  };
+    try {
+      // 4. Create account
+      const account = await createAccount(address, password);
+
+      // 5. Get auth token
+      const tokenData = await getToken(address, password);
+
+      // 6. Set expiry based on chosen duration
+      const expiresAt = Date.now() + durationMinutes * 60 * 1000;
+
+      return {
+        account,
+        token: tokenData.token,
+        password,
+        expiresAt,
+        durationMinutes,
+      };
+    } catch (err) {
+      console.warn(`Attempt ${attempts} failed to create account:`, err);
+      lastError = err instanceof Error ? err : new Error(String(err));
+
+      if (attempts < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 300 * attempts));
+      }
+    }
+  }
+
+  throw lastError || new Error("Failed to create temporary email after multiple attempts");
 }

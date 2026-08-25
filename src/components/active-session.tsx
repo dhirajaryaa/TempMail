@@ -101,17 +101,23 @@ export function ActiveSession({
 
   return (
     <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-6">
-      <div className="animate-slide-up space-y-6">
-        {/* Email + Timer */}
+      <div className="animate-slide-up space-y-4 sm:space-y-6">
+        {/* Status Indicator on Page */}
+        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-success/10 border border-success/20 text-success text-xs font-medium w-fit">
+          <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+          Active Temp Mailbox
+        </div>
+
+        {/* Email + Timer Section */}
         <div className="grid gap-4 md:grid-cols-[1fr,auto]">
-          <div className="p-5 rounded-2xl bg-card border border-card-border">
+          <div className="p-4 sm:p-5 rounded-2xl bg-card border border-card-border">
             <EmailDisplay
               address={session.account.address}
               onNewEmail={onNewEmail}
               isGenerating={isGenerating}
             />
           </div>
-          <div className="p-5 rounded-2xl bg-card border border-card-border md:min-w-[240px]">
+          <div className="p-4 sm:p-5 rounded-2xl bg-card border border-card-border md:min-w-[240px] flex items-center">
             <CountdownTimer
               expiresAt={session.expiresAt}
               durationMinutes={session.durationMinutes}

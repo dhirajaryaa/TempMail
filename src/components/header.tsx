@@ -6,38 +6,39 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 interface HeaderProps {
   sticky?: boolean;
-  statusIndicator?: React.ReactNode;
 }
 
-export function Header({ sticky, statusIndicator }: HeaderProps) {
+export function Header({ sticky }: HeaderProps) {
   return (
     <header
-      className={`border-b border-border ${
+      className={`border-b border-border bg-background ${
         sticky ? "sticky top-0 bg-header-bg backdrop-blur-xl z-10" : ""
       }`}
     >
       <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        {/* Brand */}
+        <div className="flex items-center gap-2 shrink-0">
           <Image
             src="/logo.png"
-            alt="TempMail"
+            alt="TempMail Logo"
             width={32}
             height={32}
-            className="rounded-lg"
+            className="rounded-lg w-7 h-7 sm:w-8 sm:h-8"
           />
-          <span className="font-semibold text-lg text-foreground">
+          <span className="font-semibold text-base sm:text-lg text-foreground">
             TempMail
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          {statusIndicator}
+
+        {/* Action Controls */}
+        <div className="flex items-center gap-2 shrink-0">
           <a
             href="https://tools.dhirajarya.in"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-accent border border-accent-border hover:bg-accent-muted transition-colors"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium text-accent border border-accent-border hover:bg-accent-muted transition-colors shrink-0"
           >
-            More Tools
+            <span>More Tools</span>
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
           <ThemeToggle />
