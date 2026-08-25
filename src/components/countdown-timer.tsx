@@ -43,36 +43,36 @@ export function CountdownTimer({
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           {isCritical ? (
-            <AlertTriangle className="w-4 h-4 text-red-400 animate-pulse" />
+            <AlertTriangle className="w-4 h-4 text-danger animate-pulse" />
           ) : (
             <Clock
-              className={`w-4 h-4 ${isLow ? "text-amber-400" : "text-emerald-400"}`}
+              className={`w-4 h-4 ${isLow ? "text-warning" : "text-success"}`}
             />
           )}
-          <span className="text-xs text-zinc-400 uppercase tracking-wider font-medium">
+          <span className="text-xs text-muted uppercase tracking-wider font-medium">
             Time Remaining
           </span>
         </div>
         <span
           className={`font-mono text-lg font-bold tabular-nums ${
             isCritical
-              ? "text-red-400 animate-pulse"
+              ? "text-danger animate-pulse"
               : isLow
-                ? "text-amber-400"
-                : "text-emerald-400"
+                ? "text-warning"
+                : "text-success"
           }`}
         >
           {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
         </span>
       </div>
-      <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+      <div className="w-full h-1.5 bg-border rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-1000 ease-linear ${
             isCritical
-              ? "bg-red-500"
+              ? "bg-danger"
               : isLow
-                ? "bg-amber-500"
-                : "bg-emerald-500"
+                ? "bg-warning"
+                : "bg-success"
           }`}
           style={{ width: `${progress}%` }}
         />

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Shield, Zap, Clock, Mail, Timer } from "lucide-react";
+import { Shield, Zap, Clock, Timer } from "lucide-react";
+import Image from "next/image";
 import type {
   TempMailSession,
   MessagePreview,
@@ -174,9 +175,7 @@ export default function Home() {
         <header className="border-b border-border">
           <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-                <Mail className="w-4 h-4 text-white" />
-              </div>
+              <Image src="/logo.png" alt="TempMail" width={32} height={32} className="rounded-lg" />
               <span className="font-semibold text-lg text-foreground">TempMail</span>
             </div>
             <ThemeToggle />
@@ -287,9 +286,7 @@ export default function Home() {
       <header className="border-b border-border sticky top-0 bg-header-bg backdrop-blur-xl z-10">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
-              <Mail className="w-3.5 h-3.5 text-white" />
-            </div>
+            <Image src="/logo.png" alt="TempMail" width={28} height={28} className="rounded-lg" />
             <span className="font-semibold text-foreground">TempMail</span>
           </div>
           <div className="flex items-center gap-3">
