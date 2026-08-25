@@ -37,7 +37,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/tempmail.git
+git clone https://github.com/dhirajaryaa/TempMail.git
 cd tempmail
 
 # Install dependencies
