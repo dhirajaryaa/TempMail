@@ -30,7 +30,9 @@ export function TempMailApp() {
     setIsGenerating(true);
     setError(null);
 
-    const durationToUse = durationOverride ?? selectedDuration;
+    // Safeguard: Discard click event arguments if passed dynamically
+    const durationToUse =
+      typeof durationOverride === "number" ? durationOverride : selectedDuration;
 
     try {
       const res = await fetch("/api/session", {

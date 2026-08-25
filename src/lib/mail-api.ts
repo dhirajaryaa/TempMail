@@ -119,22 +119,36 @@ function randDigits(min: number, max: number): string {
 
 // Generate a realistic-looking email username
 function generateRandomUsername(): string {
-  const first = pick(FIRST_NAMES);
-  const last = pick(LAST_NAMES);
-  const sep = pick(SEPARATORS);
-  const addDigits = Math.random() > 0.35; // 65% chance of digits
-  const digits = addDigits ? randDigits(1, 3) : "";
+  try {
+    const first = pick(FIRST_NAMES);
+    const last = pick(LAST_NAMES);
+    const sep = pick(SEPARATORS);
+    const addDigits = Math.random() > 0.35; // 65% chance of digits
+    const digits = addDigits ? randDigits(1, 3) : "";
 
-  const patterns = [
-    () => `${first}${sep}${last}${digits}`,
-    () => `${first[0]}${last}${digits}`,
-    () => `${last}${sep}${first}${digits}`,
-    () => `${first}${digits}`,
-    () => `${first}${sep}${last[0]}${digits}`,
-    () => `${last}${first[0]}${digits}`,
-  ];
+    const patterns = [
+      () => `${first}${sep}${last}${digits}`,
+      () => `${first[0]}${last}${digits}`,
+      () => `${last}${sep}${first}${digits}`,
+      () => `${first}${digits}`,
+      () => `${first}${sep}${last[0]}${digits}`,
+      () => `${last}${first[0]}${digits}`,
+    ];
 
-  return pick(patterns)();
+    const result = pick(patterns)();
+    if (result && result.length > 2) {
+      return result;
+    }
+    throw new Error("Invalid username generated");
+  } catch {
+    // Failsafe fallback: generate basic random text to prevent code error
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    let fallbackResult = "";
+    for (let i = 0; i < 10; i++) {
+      fallbackResult += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return fallbackResult;
+  }
 }
 
 // Generate a random password
@@ -164,13 +178,31 @@ async function fetchMail(url: string, options: RequestInit = {}): Promise<Respon
   });
 }
 
+// Fallback domains list in case Mail.tm API is down or rate-limited on Vercel
+const FALLBACK_DOMAINS: Domain[] = [
+  { id: "fallback-1", domain: "somoj.com", isActive: true, isPrivate: false, createdAt: "", updatedAt: "" },
+  { id: "fallback-2", domain: "emalupe.com", isActive: true, isPrivate: false, createdAt: "", updatedAt: "" },
+  { id: "fallback-3", domain: "chapsi.com", isActive: true, isPrivate: false, createdAt: "", updatedAt: "" },
+];
+
 // Fetch available domains
 export async function getDomains(): Promise<Domain[]> {
-  const res = await fetchMail(`${BASE_URL}/domains`);
-  if (!res.ok) throw new Error(`Failed to fetch domains: ${res.status}`);
-  const data = await res.json();
-  // API returns hydra:Collection format
-  return data["hydra:member"] || data.member || data;
+  try {
+    const res = await fetchMail(`${BASE_URL}/domains`);
+    if (!res.ok) {
+      console.warn(`Failed to fetch domains (status ${res.status}), using fallback list.`);
+      return FALLBACK_DOMAINS;
+    }
+    const data = await res.json();
+    const list = data["hydra:member"] || data.member || data;
+    if (Array.isArray(list) && list.length > 0) {
+      return list;
+    }
+    return FALLBACK_DOMAINS;
+  } catch (err) {
+    console.warn("Failed to fetch domains due to network error, using fallback list:", err);
+    return FALLBACK_DOMAINS;
+  }
 }
 
 // Create a new temp mail account
