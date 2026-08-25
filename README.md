@@ -1,36 +1,138 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 📧 TempMail
 
-## Getting Started
+> Instant disposable email addresses. No signup. No data stored. 5-minute sessions.
 
-First, run the development server:
+![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
+![Tailwind](https://img.shields.io/badge/Tailwind_CSS-4-38bdf8?logo=tailwindcss)
+![License](https://img.shields.io/badge/License-MIT-green)
+
+## ✨ Features
+
+- **🚀 One-Click Generation** — Get a random temporary email instantly
+- **📬 Live Inbox** — Auto-polls for new messages every 5 seconds
+- **⏱️ 5-Minute Timer** — Visual countdown with color-coded urgency
+- **📖 Message Viewer** — Read full email content (HTML rendered safely)
+- **📋 Copy to Clipboard** — One click to copy your temp address
+- **🔒 Privacy-First** — No signup, no tracking, accounts auto-deleted
+- **🌙 Dark Theme** — Beautiful dark UI with violet accents
+
+## 🛠️ Tech Stack
+
+- **Framework**: [Next.js](https://nextjs.org/) 16+ (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS v4
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Email API**: [Mail.tm](https://mail.tm/) ([API Docs](https://docs.mail.tm/))
+- **Package Manager**: [Bun](https://bun.sh/)
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) 18+ or [Bun](https://bun.sh/) 1.0+
+- No API keys needed — Mail.tm is free and open
+
+### Installation
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+# Clone the repository
+git clone https://github.com/yourusername/tempmail.git
+cd tempmail
+
+# Install dependencies
+bun install
+
+# Start development server
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Build for Production
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+bun run build
+bun start
+```
 
-## Learn More
+## 📁 Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+tempmail/
+├── src/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── session/       # POST - Create temp email session
+│   │   │   │   └── route.ts
+│   │   │   ├── messages/      # GET - Fetch inbox messages
+│   │   │   │   ├── route.ts
+│   │   │   │   └── [id]/      # GET - Fetch single message
+│   │   │   │       └── route.ts
+│   │   │   └── cleanup/       # POST - Delete account on expiry
+│   │   │       └── route.ts
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   └── page.tsx           # Main app (state machine)
+│   ├── components/
+│   │   ├── countdown-timer.tsx
+│   │   ├── email-display.tsx
+│   │   ├── generate-button.tsx
+│   │   ├── inbox.tsx
+│   │   └── message-viewer.tsx
+│   └── lib/
+│       └── mail-api.ts        # Mail.tm API service layer
+├── PRD.md                     # Product Requirements Document
+├── package.json
+└── README.md
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🔄 How It Works
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+User clicks "Generate"
+        │
+        ▼
+  POST /api/session
+        │
+        ├── GET api.mail.tm/domains     (pick random domain)
+        ├── POST api.mail.tm/accounts   (create account)
+        └── POST api.mail.tm/token      (get auth token)
+        │
+        ▼
+  Active Session (5 min)
+        │
+        ├── Poll GET /api/messages every 5s
+        ├── Click message → GET /api/messages/{id}
+        └── Timer counts down
+        │
+        ▼
+  Session Expires
+        │
+        └── POST /api/cleanup → DELETE api.mail.tm/accounts/{id}
+```
 
-## Deploy on Vercel
+## 🎨 Design
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Color Scheme**: Zinc dark backgrounds with violet/indigo accents
+- **Typography**: Geist Sans & Geist Mono (from Next.js)
+- **Animations**: Fade-in, slide-up, pulse on critical timer
+- **Layout**: Centered, responsive, mobile-friendly
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## ⚠️ Limitations
+
+- **5-minute max session** — by design, for privacy
+- **No attachments** — text/HTML email content only
+- **No sending** — receive only
+- **Rate limited** — Mail.tm allows 8 queries/second per IP
+- **Domain availability** — depends on Mail.tm's active domains
+
+## 📄 License
+
+MIT License — see [LICENSE](LICENSE) for details.
+
+## 🙏 Credits
+
+- Email service powered by [Mail.tm](https://mail.tm/)
+- Icons by [Lucide](https://lucide.dev/)
+- Built with [Next.js](https://nextjs.org/) and [Tailwind CSS](https://tailwindcss.com/)

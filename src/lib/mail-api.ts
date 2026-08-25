@@ -1,0 +1,242 @@
+// Mail.tm API Service Layer
+// Docs: https://docs.mail.tm/
+// Base URL: https://api.mail.tm
+// Rate limit: 8 QPS per IP
+
+const BASE_URL = "https://api.mail.tm";
+
+export interface Domain {
+  id: string;
+  domain: string;
+  isActive: boolean;
+  isPrivate: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Account {
+  id: string;
+  address: string;
+  quota: number;
+  used: number;
+  isDisabled: boolean;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MessageSender {
+  address: string;
+  name: string;
+}
+
+export interface MessagePreview {
+  id: string;
+  msgid: string;
+  from: MessageSender;
+  to: MessageSender[];
+  subject: string;
+  intro: string;
+  seen: boolean;
+  isDeleted: boolean;
+  hasAttachments: boolean;
+  size: number;
+  downloadUrl: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MessageFull extends MessagePreview {
+  text: string;
+  html: string[];
+  sourceUrl: string;
+  accountId: string;
+}
+
+export interface TokenResponse {
+  token: string;
+  id: string;
+}
+
+export interface TempMailSession {
+  account: Account;
+  token: string;
+  password: string;
+  expiresAt: number; // timestamp when session expires
+  durationMinutes: number; // chosen duration
+}
+
+// Generate a random string for email username
+function generateRandomUsername(length = 10): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+// Generate a random password
+function generateRandomPassword(length = 16): string {
+  const chars =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%";
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+// Fetch available domains
+export async function getDomains(): Promise<Domain[]> {
+  const res = await fetch(`${BASE_URL}/domains`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error(`Failed to fetch domains: ${res.status}`);
+  const data = await res.json();
+  // API returns hydra:Collection format
+  return data["hydra:member"] || data.member || data;
+}
+
+// Create a new temp mail account
+export async function createAccount(
+  address: string,
+  password: string
+): Promise<Account> {
+  const res = await fetch(`${BASE_URL}/accounts`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ address, password }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      `Failed to create account: ${res.status} - ${err.detail || err.message || "Unknown error"}`
+    );
+  }
+  return res.json();
+}
+
+// Get auth token
+export async function getToken(
+  address: string,
+  password: string
+): Promise<TokenResponse> {
+  const res = await fetch(`${BASE_URL}/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ address, password }),
+  });
+  if (!res.ok) throw new Error(`Failed to get token: ${res.status}`);
+  return res.json();
+}
+
+// Fetch messages for authenticated account
+export async function getMessages(token: string): Promise<MessagePreview[]> {
+  const res = await fetch(`${BASE_URL}/messages`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
+  if (!res.ok) throw new Error(`Failed to fetch messages: ${res.status}`);
+  const data = await res.json();
+  return data["hydra:member"] || data.member || data;
+}
+
+// Fetch a single message with full content
+export async function getMessage(
+  token: string,
+  messageId: string
+): Promise<MessageFull> {
+  const res = await fetch(`${BASE_URL}/messages/${messageId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
+  if (!res.ok) throw new Error(`Failed to fetch message: ${res.status}`);
+  return res.json();
+}
+
+// Delete an account
+export async function deleteAccount(
+  token: string,
+  accountId: string
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/accounts/${accountId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error(`Failed to delete account: ${res.status}`);
+  }
+}
+
+// Delete a message
+export async function deleteMessage(
+  token: string,
+  messageId: string
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/messages/${messageId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error(`Failed to delete message: ${res.status}`);
+  }
+}
+
+// Available duration options in minutes
+export const DURATION_OPTIONS = [5, 10, 15, 30] as const;
+export type DurationMinutes = (typeof DURATION_OPTIONS)[number];
+
+// High-level: create a full temp mail session
+export async function createTempMailSession(
+  durationMinutes: DurationMinutes = 5
+): Promise<TempMailSession> {
+  // 1. Get available domains
+  const domains = await getDomains();
+  const activeDomains = domains.filter((d) => d.isActive && !d.isPrivate);
+  if (activeDomains.length === 0) {
+    throw new Error("No active domains available");
+  }
+
+  // 2. Pick a random domain
+  const domain =
+    activeDomains[Math.floor(Math.random() * activeDomains.length)];
+
+  // 3. Generate random credentials
+  const username = generateRandomUsername();
+  const password = generateRandomPassword();
+  const address = `${username}@${domain.domain}`;
+
+  // 4. Create account
+  const account = await createAccount(address, password);
+
+  // 5. Get auth token
+  const tokenData = await getToken(address, password);
+
+  // 6. Set expiry based on chosen duration
+  const expiresAt = Date.now() + durationMinutes * 60 * 1000;
+
+  return {
+    account,
+    token: tokenData.token,
+    password,
+    expiresAt,
+    durationMinutes,
+  };
+}
