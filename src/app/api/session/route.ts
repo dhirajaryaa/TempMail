@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createTempMailSession, DURATION_OPTIONS } from "@/lib/mail-api";
 import type { DurationMinutes } from "@/lib/mail-api";
 
+export const runtime = "edge";
+
 export async function POST(request: NextRequest) {
   try {
     let durationMinutes: DurationMinutes = 5;

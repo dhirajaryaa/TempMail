@@ -5,6 +5,10 @@
 
 const BASE_URL = "https://api.mail.tm";
 
+// A realistic user agent to prevent Cloudflare/WAF blockages on Mail.tm side
+const USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
 export interface Domain {
   id: string;
   domain: string;
@@ -114,7 +118,6 @@ function randDigits(min: number, max: number): string {
 }
 
 // Generate a realistic-looking email username
-// Patterns: john.smith, john.smith92, jsmith, john_smith7, smithjohn3, etc.
 function generateRandomUsername(): string {
   const first = pick(FIRST_NAMES);
   const last = pick(LAST_NAMES);
@@ -123,12 +126,12 @@ function generateRandomUsername(): string {
   const digits = addDigits ? randDigits(1, 3) : "";
 
   const patterns = [
-    () => `${first}${sep}${last}${digits}`,          // john.smith92
-    () => `${first[0]}${last}${digits}`,              // jsmith7
-    () => `${last}${sep}${first}${digits}`,           // smith.john3
-    () => `${first}${digits}`,                        // john92
-    () => `${first}${sep}${last[0]}${digits}`,        // john.s42
-    () => `${last}${first[0]}${digits}`,              // smithj5
+    () => `${first}${sep}${last}${digits}`,
+    () => `${first[0]}${last}${digits}`,
+    () => `${last}${sep}${first}${digits}`,
+    () => `${first}${digits}`,
+    () => `${first}${sep}${last[0]}${digits}`,
+    () => `${last}${first[0]}${digits}`,
   ];
 
   return pick(patterns)();
@@ -145,11 +148,25 @@ function generateRandomPassword(length = 16): string {
   return result;
 }
 
+// Helper to make fetch requests with custom headers and modern compatibility
+async function fetchMail(url: string, options: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(options.headers || {});
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
+  if (!headers.has("User-Agent")) {
+    headers.set("User-Agent", USER_AGENT);
+  }
+
+  return fetch(url, {
+    ...options,
+    headers,
+  });
+}
+
 // Fetch available domains
 export async function getDomains(): Promise<Domain[]> {
-  const res = await fetch(`${BASE_URL}/domains`, {
-    headers: { Accept: "application/json" },
-  });
+  const res = await fetchMail(`${BASE_URL}/domains`);
   if (!res.ok) throw new Error(`Failed to fetch domains: ${res.status}`);
   const data = await res.json();
   // API returns hydra:Collection format
@@ -161,11 +178,10 @@ export async function createAccount(
   address: string,
   password: string
 ): Promise<Account> {
-  const res = await fetch(`${BASE_URL}/accounts`, {
+  const res = await fetchMail(`${BASE_URL}/accounts`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Accept: "application/json",
     },
     body: JSON.stringify({ address, password }),
   });
@@ -183,11 +199,10 @@ export async function getToken(
   address: string,
   password: string
 ): Promise<TokenResponse> {
-  const res = await fetch(`${BASE_URL}/token`, {
+  const res = await fetchMail(`${BASE_URL}/token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Accept: "application/json",
     },
     body: JSON.stringify({ address, password }),
   });
@@ -197,10 +212,9 @@ export async function getToken(
 
 // Fetch messages for authenticated account
 export async function getMessages(token: string): Promise<MessagePreview[]> {
-  const res = await fetch(`${BASE_URL}/messages`, {
+  const res = await fetchMail(`${BASE_URL}/messages`, {
     headers: {
       Authorization: `Bearer ${token}`,
-      Accept: "application/json",
     },
   });
   if (!res.ok) throw new Error(`Failed to fetch messages: ${res.status}`);
@@ -213,10 +227,9 @@ export async function getMessage(
   token: string,
   messageId: string
 ): Promise<MessageFull> {
-  const res = await fetch(`${BASE_URL}/messages/${messageId}`, {
+  const res = await fetchMail(`${BASE_URL}/messages/${messageId}`, {
     headers: {
       Authorization: `Bearer ${token}`,
-      Accept: "application/json",
     },
   });
   if (!res.ok) throw new Error(`Failed to fetch message: ${res.status}`);
@@ -228,11 +241,10 @@ export async function deleteAccount(
   token: string,
   accountId: string
 ): Promise<void> {
-  const res = await fetch(`${BASE_URL}/accounts/${accountId}`, {
+  const res = await fetchMail(`${BASE_URL}/accounts/${accountId}`, {
     method: "DELETE",
     headers: {
       Authorization: `Bearer ${token}`,
-      Accept: "application/json",
     },
   });
   if (!res.ok && res.status !== 204) {
@@ -245,11 +257,10 @@ export async function deleteMessage(
   token: string,
   messageId: string
 ): Promise<void> {
-  const res = await fetch(`${BASE_URL}/messages/${messageId}`, {
+  const res = await fetchMail(`${BASE_URL}/messages/${messageId}`, {
     method: "DELETE",
     headers: {
       Authorization: `Bearer ${token}`,
-      Accept: "application/json",
     },
   });
   if (!res.ok && res.status !== 204) {

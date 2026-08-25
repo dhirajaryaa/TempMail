@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteAccount } from "@/lib/mail-api";
 
+export const runtime = "edge";
+
 export async function POST(request: NextRequest) {
   try {
     const { token, accountId } = await request.json();

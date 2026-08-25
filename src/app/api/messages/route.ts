@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMessages } from "@/lib/mail-api";
 
+export const runtime = "edge";
+
 export async function GET(request: NextRequest) {
   const token = request.headers.get("x-mail-token");
   if (!token) {
