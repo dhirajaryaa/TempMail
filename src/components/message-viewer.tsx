@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ArrowLeft, Calendar, User, Loader2 } from "lucide-react";
 import type { MessageFull } from "@/lib/mail-api";
 
@@ -19,6 +20,26 @@ function formatDate(dateStr: string): string {
 }
 
 export function MessageViewer({ message, isLoading, onBack }: MessageViewerProps) {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsDark(document.documentElement.classList.contains("dark"));
+
+      // Setup a MutationObserver to listen to class changes on <html> (theme toggles)
+      const observer = new MutationObserver(() => {
+        setIsDark(document.documentElement.classList.contains("dark"));
+      });
+
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["class"],
+      });
+
+      return () => observer.disconnect();
+    }
+  }, []);
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -47,13 +68,10 @@ export function MessageViewer({ message, isLoading, onBack }: MessageViewerProps
       margin: 0;
       padding: 16px;
       background: transparent;
-      color: #333;
+      color: ${isDark ? "#fafafa" : "#171717"};
       font-size: 14px;
       line-height: 1.6;
       word-break: break-word;
-    }
-    @media (prefers-color-scheme: dark) {
-      body { color: #e4e4e7; }
     }
     a { color: #ff5a54; }
     img { max-width: 100%; height: auto; }
