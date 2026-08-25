@@ -10,11 +10,13 @@ import { EmailDisplay } from "@/components/email-display";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { Inbox } from "@/components/inbox";
 import { MessageViewer } from "@/components/message-viewer";
+import { Trash2 } from "lucide-react";
 
 interface ActiveSessionProps {
   session: TempMailSession;
   onExpire: () => void;
   onNewEmail: () => void;
+  onCancel: () => void;
   isGenerating: boolean;
 }
 
@@ -22,6 +24,7 @@ export function ActiveSession({
   session,
   onExpire,
   onNewEmail,
+  onCancel,
   isGenerating,
 }: ActiveSessionProps) {
   const [messages, setMessages] = useState<MessagePreview[]>([]);
@@ -31,6 +34,7 @@ export function ActiveSession({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isLoadingMessage, setIsLoadingMessage] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch messages
@@ -71,6 +75,16 @@ export function ActiveSession({
     onExpire();
   }, [onExpire]);
 
+  // Handle cancel session
+  const handleCancelClick = async () => {
+    if (confirm("Are you sure you want to delete this email session and all messages forever?")) {
+      setIsCanceling(true);
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      await onCancel();
+      setIsCanceling(false);
+    }
+  };
+
   // Load full message
   const handleSelectMessage = useCallback(
     async (id: string) => {
@@ -102,10 +116,22 @@ export function ActiveSession({
   return (
     <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-6">
       <div className="animate-slide-up space-y-4 sm:space-y-6">
-        {/* Status Indicator on Page */}
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-success/10 border border-success/20 text-success text-xs font-medium w-fit">
-          <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-          Active Temp Mailbox
+        {/* Status Indicator & Cancel Button Row */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-success/10 border border-success/20 text-success text-xs font-medium w-fit">
+            <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+            Active Temp Mailbox
+          </div>
+
+          <button
+            onClick={handleCancelClick}
+            disabled={isCanceling}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-danger border border-danger/20 bg-danger/5 hover:bg-danger/10 transition-colors disabled:opacity-50"
+            title="Cancel session and delete mailbox"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete Session</span>
+          </button>
         </div>
 
         {/* Email + Timer Section */}

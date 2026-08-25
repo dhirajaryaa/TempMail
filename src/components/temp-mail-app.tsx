@@ -33,7 +33,6 @@ export function TempMailApp() {
             setSession(parsed);
             setAppState("active");
           } else {
-            // Already expired — clean up storage + trigger background delete
             localStorage.removeItem(STORAGE_KEY);
             await fetch("/api/cleanup", {
               method: "POST",
@@ -46,7 +45,7 @@ export function TempMailApp() {
           }
         }
       } catch {
-        // fail silently on parse errors
+        // fail silently
       } finally {
         setIsRestoring(false);
       }
@@ -69,7 +68,6 @@ export function TempMailApp() {
       if (!res.ok) throw new Error("Failed to create session");
       const data: TempMailSession = await res.json();
 
-      // Save to state and localStorage
       setSession(data);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       setAppState("active");
@@ -82,7 +80,7 @@ export function TempMailApp() {
     }
   }, [selectedDuration]);
 
-  // Handle session expiry + cleanup
+  // Handle session expiry
   const handleExpire = useCallback(async () => {
     setAppState("expired");
     localStorage.removeItem(STORAGE_KEY);
@@ -103,6 +101,39 @@ export function TempMailApp() {
     }
   }, [session]);
 
+  // Cancel/Delete session manually
+  const handleCancel = useCallback(async () => {
+    setAppState("landing");
+    localStorage.removeItem(STORAGE_KEY);
+
+    if (session) {
+      try {
+        await fetch("/api/cleanup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token: session.token,
+            accountId: session.account.id,
+          }),
+        });
+      } catch {
+        // best effort cleanup
+      }
+    }
+    setSession(null);
+  }, [session]);
+
+  // Reset/Logo click handler
+  const handleLogoClick = useCallback(() => {
+    if (appState === "active") {
+      if (confirm("Return to home? This will keep your active mailbox running in the background.")) {
+        setAppState("landing");
+      }
+    } else {
+      setAppState("landing");
+    }
+  }, [appState]);
+
   // Regenerate from expired state
   const handleRegenerate = useCallback(() => {
     setAppState("landing");
@@ -121,7 +152,7 @@ export function TempMailApp() {
   if (appState === "landing") {
     return (
       <>
-        <Header />
+        <Header onLogoClick={handleLogoClick} />
         <LandingSection
           selectedDuration={selectedDuration}
           onDurationChange={setSelectedDuration}
@@ -137,7 +168,7 @@ export function TempMailApp() {
   if (appState === "expired") {
     return (
       <>
-        <Header />
+        <Header onLogoClick={handleLogoClick} />
         <ExpiredSection
           onRegenerate={handleRegenerate}
           isGenerating={isGenerating}
@@ -149,12 +180,13 @@ export function TempMailApp() {
   // ── ACTIVE ──
   return (
     <>
-      <Header sticky />
+      <Header sticky onLogoClick={handleLogoClick} />
       {session && (
         <ActiveSession
           session={session}
           onExpire={handleExpire}
           onNewEmail={generateEmail}
+          onCancel={handleCancel}
           isGenerating={isGenerating}
         />
       )}

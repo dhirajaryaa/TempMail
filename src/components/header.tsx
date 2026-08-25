@@ -6,9 +6,10 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 interface HeaderProps {
   sticky?: boolean;
+  onLogoClick?: () => void;
 }
 
-export function Header({ sticky }: HeaderProps) {
+export function Header({ sticky, onLogoClick }: HeaderProps) {
   return (
     <header
       className={`border-b border-border bg-background ${
@@ -16,19 +17,23 @@ export function Header({ sticky }: HeaderProps) {
       }`}
     >
       <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-        {/* Brand */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Brand Link */}
+        <button
+          onClick={onLogoClick}
+          className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity cursor-pointer group text-left"
+          title="Go to Home"
+        >
           <Image
             src="/logo.png"
             alt="TempMail Logo"
             width={32}
             height={32}
-            className="rounded-lg w-7 h-7 sm:w-8 sm:h-8"
+            className="rounded-lg w-7 h-7 sm:w-8 sm:h-8 group-hover:scale-105 transition-transform"
           />
-          <span className="font-semibold text-base sm:text-lg text-foreground">
+          <span className="font-semibold text-base sm:text-lg text-foreground group-hover:text-accent transition-colors">
             TempMail
           </span>
-        </div>
+        </button>
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 shrink-0">

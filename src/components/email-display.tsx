@@ -31,7 +31,7 @@ export function EmailDisplay({
         </span>
       </div>
       <div className="flex items-center gap-2">
-        <div className="flex-1 flex items-center bg-input-bg border border-input-border rounded-xl px-4 py-3 group hover:border-accent-border transition-colors">
+        <div className="flex-1 flex items-center bg-input-bg border border-input-border rounded-xl px-4 py-2.5 group hover:border-accent-border transition-colors">
           <span className="flex-1 font-mono text-sm sm:text-base text-foreground truncate select-all">
             {address}
           </span>
