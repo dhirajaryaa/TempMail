@@ -154,6 +154,7 @@ export function ActiveSession({
               message={selectedMessage}
               isLoading={isLoadingMessage}
               onBack={handleBack}
+              mailboxAddress={session.address}
             />
           ) : (
             <Inbox
