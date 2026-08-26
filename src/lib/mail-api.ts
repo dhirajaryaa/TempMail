@@ -7,9 +7,6 @@
 
 const BASE_URL = "https://grabmail.io/api/v1";
 
-// Public domains available for free use
-const PUBLIC_DOMAINS = ["grabmail.io", "mixozia.com", "linqmail.com"];
-
 export interface MailboxResponse {
   address: string;
   alias: string;
@@ -137,18 +134,45 @@ function generateRandomUsername(): string {
   }
 }
 
+// Simple in-memory request cache to prevent double-fetches and rate limits (429)
+// Keys are request URLs, value is the pending/completed promise + timestamp
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const requestCache = new Map<string, { promise: Promise<any>; timestamp: number }>();
+const CACHE_TTL_MS = 2000; // Cache requests for 2 seconds to respect 1s rate-limit
+
+async function fetchWithCache<T>(url: string, fetchFn: () => Promise<T>): Promise<T> {
+  const now = Date.now();
+  const cached = requestCache.get(url);
+
+  if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+    return cached.promise;
+  }
+
+  const promise = fetchFn().catch((err) => {
+    // If the request fails, remove it from cache so retries can run immediately
+    requestCache.delete(url);
+    throw err;
+  });
+
+  requestCache.set(url, { promise, timestamp: now });
+  return promise;
+}
+
 // Fetch mailbox (list messages) for an address
 export async function getMessages(address: string): Promise<MessagePreview[]> {
   const url = `${BASE_URL}/mailbox?address=${encodeURIComponent(address)}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    if (res.status === 429) {
-      throw new Error("Rate limited. Please wait a moment and try again.");
+
+  return fetchWithCache(url, async () => {
+    const res = await fetch(url);
+    if (!res.ok) {
+      if (res.status === 429) {
+        throw new Error("Rate limited. Please wait a moment and try again.");
+      }
+      throw new Error(`Failed to fetch messages: ${res.status}`);
     }
-    throw new Error(`Failed to fetch messages: ${res.status}`);
-  }
-  const data: MailboxResponse = await res.json();
-  return data.messages || [];
+    const data: MailboxResponse = await res.json();
+    return data.messages || [];
+  });
 }
 
 // Fetch a single message with full content
@@ -157,11 +181,14 @@ export async function getMessage(
   messageId: string
 ): Promise<MessageFull> {
   const url = `${BASE_URL}/message/${messageId}?mailbox=${encodeURIComponent(address)}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`Failed to fetch message: ${res.status}`);
-  }
-  return res.json();
+
+  return fetchWithCache(url, async () => {
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch message: ${res.status}`);
+    }
+    return res.json();
+  });
 }
 
 // Create a new temp mail session

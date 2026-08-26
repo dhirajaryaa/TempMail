@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Calendar, User, Loader2 } from "lucide-react";
+import { ArrowLeft, Calendar, User, Loader2, Paperclip, Download } from "lucide-react";
 import type { MessageFull } from "@/lib/mail-api";
 
 interface MessageViewerProps {
   message: MessageFull | null;
   isLoading: boolean;
   onBack: () => void;
+  mailboxAddress: string;
 }
 
 function parseTimestamp(timestamp: string | number): Date {
@@ -39,12 +40,19 @@ function formatDate(dateVal: string | number): string {
   });
 }
 
-export function MessageViewer({ message, isLoading, onBack }: MessageViewerProps) {
+export function MessageViewer({
+  message,
+  isLoading,
+  onBack,
+  mailboxAddress,
+}: MessageViewerProps) {
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setIsDark(document.documentElement.classList.contains("dark"));
+      const frame = requestAnimationFrame(() => {
+        setIsDark(document.documentElement.classList.contains("dark"));
+      });
 
       // Setup a MutationObserver to listen to class changes on <html> (theme toggles)
       const observer = new MutationObserver(() => {
@@ -56,7 +64,10 @@ export function MessageViewer({ message, isLoading, onBack }: MessageViewerProps
         attributeFilter: ["class"],
       });
 
-      return () => observer.disconnect();
+      return () => {
+        cancelAnimationFrame(frame);
+        observer.disconnect();
+      };
     }
   }, []);
 
@@ -127,6 +138,43 @@ export function MessageViewer({ message, isLoading, onBack }: MessageViewerProps
           </div>
         </div>
       </div>
+
+      {/* Attachments Section */}
+      {message.attachments && message.attachments.length > 0 && (
+        <div className="px-5 py-3 border-b border-border bg-card/30">
+          <div className="text-xs font-semibold text-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Paperclip className="w-3.5 h-3.5 text-accent" />
+            <span>Attachments ({message.attachments.length})</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {message.attachments.map((file) => {
+              const formatFileSize = (bytes: number): string => {
+                if (bytes === 0) return "0 B";
+                const k = 1024;
+                const sizes = ["B", "KB", "MB", "GB"];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+              };
+
+              return (
+                <a
+                  key={file.id}
+                  href={`https://grabmail.io/api/v1/attachment/${file.id}?mailbox=${encodeURIComponent(
+                    mailboxAddress
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-card border border-card-border hover:border-accent-border hover:bg-hover-bg text-sm text-foreground transition-all duration-200"
+                >
+                  <span className="truncate max-w-[200px] font-medium">{file.filename}</span>
+                  <span className="text-xs text-muted-foreground">({formatFileSize(file.size)})</span>
+                  <Download className="w-3.5 h-3.5 text-muted-foreground ml-1 shrink-0" />
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 min-h-0">
