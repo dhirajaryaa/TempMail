@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import type { TempMailSession, DurationMinutes } from "@/lib/mail-api";
-import { DURATION_OPTIONS } from "@/lib/mail-api";
+import { DURATION_OPTIONS, createTempMailSession, deleteAccount } from "@/lib/mail-api";
 import { Header } from "@/components/header";
 import { LandingSection } from "@/components/landing-section";
 import { ActiveSession } from "@/components/active-session";
@@ -25,24 +25,16 @@ export function TempMailApp() {
   const router = useRouter();
   const autoCreatedRef = useRef(false);
 
-  // Generate a new temp email session
+  // Generate a new temp email session directly in client browser
   const generateEmail = useCallback(async (durationOverride?: DurationMinutes) => {
     setIsGenerating(true);
     setError(null);
 
-    // Safeguard: Discard click event arguments if passed dynamically
     const durationToUse =
       typeof durationOverride === "number" ? durationOverride : selectedDuration;
 
     try {
-      const res = await fetch("/api/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ durationMinutes: durationToUse }),
-      });
-      if (!res.ok) throw new Error("Failed to create session");
-      const data: TempMailSession = await res.json();
-
+      const data = await createTempMailSession(durationToUse);
       setSession(data);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       setAppState("active");
@@ -74,14 +66,8 @@ export function TempMailApp() {
             return;
           } else {
             localStorage.removeItem(STORAGE_KEY);
-            await fetch("/api/cleanup", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                token: parsed.token,
-                accountId: parsed.account.id,
-              }),
-            }).catch(() => {});
+            // Clean up old session directly from client browser
+            await deleteAccount().catch(() => {});
           }
         }
 
@@ -120,42 +106,28 @@ export function TempMailApp() {
     initSession();
   }, [searchParams, generateEmail, router]);
 
-  // Handle session expiry — automatically redirect to home page
+  // Handle session expiry
   const handleExpire = useCallback(async () => {
     localStorage.removeItem(STORAGE_KEY);
     router.push("/?expired=true");
 
     if (session) {
       try {
-        await fetch("/api/cleanup", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token: session.token,
-            accountId: session.account.id,
-          }),
-        });
+        await deleteAccount();
       } catch {
         // best effort cleanup
       }
     }
   }, [session, router]);
 
-  // Cancel/Delete session manually — redirect to home page
+  // Cancel/Delete session manually
   const handleCancel = useCallback(async () => {
     localStorage.removeItem(STORAGE_KEY);
     router.push("/");
 
     if (session) {
       try {
-        await fetch("/api/cleanup", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token: session.token,
-            accountId: session.account.id,
-          }),
-        });
+        await deleteAccount();
       } catch {
         // best effort cleanup
       }

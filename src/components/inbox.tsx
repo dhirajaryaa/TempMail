@@ -11,8 +11,27 @@ interface InboxProps {
   isRefreshing: boolean;
 }
 
-function formatTime(dateStr: string): string {
-  const date = new Date(dateStr);
+function parseTimestamp(timestamp: string | number): Date {
+  if (!timestamp) return new Date();
+
+  if (typeof timestamp === "number") {
+    return new Date(timestamp < 10000000000 ? timestamp * 1000 : timestamp);
+  }
+
+  const parsed = parseInt(timestamp, 10);
+  if (!isNaN(parsed) && /^\d+$/.test(timestamp)) {
+    return new Date(parsed < 10000000000 ? parsed * 1000 : parsed);
+  }
+
+  const date = new Date(timestamp);
+  if (isNaN(date.getTime())) {
+    return new Date();
+  }
+  return date;
+}
+
+function formatTime(dateVal: string | number): string {
+  const date = parseTimestamp(dateVal);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMin = Math.floor(diffMs / 60000);
@@ -99,19 +118,19 @@ export function Inbox({
           onClick={() => onSelect(msg.id)}
           className={`w-full text-left px-5 py-4 hover:bg-hover-bg transition-colors ${
             selectedId === msg.id ? "bg-hover-bg" : ""
-          } ${!msg.seen ? "border-l-2 border-accent" : "border-l-2 border-transparent"}`}
+          } ${!msg.read ? "border-l-2 border-accent" : "border-l-2 border-transparent"}`}
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <span
                   className={`text-sm truncate ${
-                    !msg.seen
+                    !msg.read
                       ? "font-semibold text-foreground"
                       : "text-muted"
                   }`}
                 >
-                  {msg.from?.name || msg.from?.address || "Unknown Sender"}
+                  {msg.from || "Unknown Sender"}
                 </span>
                 {msg.hasAttachments && (
                   <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
@@ -119,7 +138,7 @@ export function Inbox({
               </div>
               <p
                 className={`text-sm truncate mb-1 ${
-                  !msg.seen ? "text-foreground" : "text-muted"
+                  !msg.read ? "text-foreground" : "text-muted"
                 }`}
               >
                 {msg.subject || "(No Subject)"}
@@ -129,7 +148,7 @@ export function Inbox({
               </p>
             </div>
             <span className="text-xs text-muted-foreground shrink-0 mt-0.5">
-              {formatTime(msg.createdAt)}
+              {formatTime(msg.timestamp)}
             </span>
           </div>
         </button>

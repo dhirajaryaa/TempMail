@@ -6,6 +6,7 @@ import type {
   MessagePreview,
   MessageFull,
 } from "@/lib/mail-api";
+import { getMessages, getMessage } from "@/lib/mail-api";
 import { EmailDisplay } from "@/components/email-display";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { Inbox } from "@/components/inbox";
@@ -37,20 +38,15 @@ export function ActiveSession({
   const [isCanceling, setIsCanceling] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Fetch messages
+  // Fetch messages directly from browser to GrabMail
   const fetchMessages = useCallback(async () => {
     try {
-      const res = await fetch("/api/messages", {
-        headers: { "x-mail-token": session.token },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data);
-      }
+      const data = await getMessages(session.address);
+      setMessages(data);
     } catch {
       // silently fail on polling errors
     }
-  }, [session.token]);
+  }, [session.address]);
 
   // Manual refresh
   const handleRefresh = useCallback(async () => {
@@ -61,7 +57,7 @@ export function ActiveSession({
 
   // Poll every 10 seconds
   useEffect(() => {
-    // Defer the initial execution to a microtask to prevent synchronous setState inside the effect body
+    // Defer the initial execution to a microtask
     Promise.resolve().then(() => {
       fetchMessages();
     });
@@ -89,26 +85,21 @@ export function ActiveSession({
     }
   };
 
-  // Load full message
+  // Load full message directly from browser to GrabMail
   const handleSelectMessage = useCallback(
     async (id: string) => {
       setSelectedId(id);
       setIsLoadingMessage(true);
       try {
-        const res = await fetch(`/api/messages/${id}`, {
-          headers: { "x-mail-token": session.token },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setSelectedMessage(data);
-        }
+        const data = await getMessage(session.address, id);
+        setSelectedMessage(data);
       } catch {
         // fail silently
       } finally {
         setIsLoadingMessage(false);
       }
     },
-    [session.token]
+    [session.address]
   );
 
   // Back to inbox
@@ -142,7 +133,7 @@ export function ActiveSession({
         <div className="grid gap-4 md:grid-cols-[1fr,auto]">
           <div className="p-4 sm:p-5 rounded-2xl bg-card border border-card-border">
             <EmailDisplay
-              address={session.account.address}
+              address={session.address}
               onNewEmail={onNewEmail}
               isGenerating={isGenerating}
             />
