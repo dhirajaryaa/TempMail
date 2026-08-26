@@ -1,74 +1,62 @@
-// Mail.tm API Service Layer
-// Docs: https://docs.mail.tm/
-// Base URL: https://api.mail.tm
-// Rate limit: 8 QPS per IP
+// GrabMail API Service Layer
+// Docs: https://grabmail.io/docs/api
+// Base URL: https://grabmail.io/api/v1
+// No API key, no account creation needed.
+// An address exists the moment mail reaches it.
+// Rate limit: 1 read/sec per address, 1200 req/60s per client.
 
-const BASE_URL = "https://api.mail.tm";
+const BASE_URL = "https://grabmail.io/api/v1";
 
-// A realistic user agent to prevent Cloudflare/WAF blockages on Mail.tm side
-const USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+// Public domains available for free use
+const PUBLIC_DOMAINS = ["grabmail.io", "mixozia.com", "linqmail.com"];
 
-export interface Domain {
-  id: string;
-  domain: string;
-  isActive: boolean;
-  isPrivate: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Account {
-  id: string;
+export interface MailboxResponse {
   address: string;
-  quota: number;
-  used: number;
-  isDisabled: boolean;
-  isDeleted: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface MessageSender {
-  address: string;
-  name: string;
+  alias: string;
+  messages: MessagePreview[];
 }
 
 export interface MessagePreview {
   id: string;
-  msgid: string;
-  from: MessageSender;
-  to: MessageSender[];
+  from: string;
   subject: string;
   intro: string;
-  seen: boolean;
-  isDeleted: boolean;
+  timestamp: string;
+  read: boolean;
   hasAttachments: boolean;
-  size: number;
-  downloadUrl: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
-export interface MessageFull extends MessagePreview {
-  text: string;
-  html: string[];
-  sourceUrl: string;
-  accountId: string;
-}
-
-export interface TokenResponse {
-  token: string;
+export interface MessageFull {
   id: string;
+  from: string;
+  to: string;
+  subject: string;
+  intro: string;
+  text: string;
+  html: string;
+  timestamp: string;
+  read: boolean;
+  hasAttachments: boolean;
+  attachments: MessageAttachment[];
+}
+
+export interface MessageAttachment {
+  id: string;
+  filename: string;
+  contentType: string;
+  size: number;
 }
 
 export interface TempMailSession {
-  account: Account;
-  token: string;
-  password: string;
-  expiresAt: number; // timestamp when session expires
-  durationMinutes: number; // chosen duration
+  address: string;
+  alias: string;
+  expiresAt: number;
+  durationMinutes: number;
 }
+
+// Available duration options in minutes
+export const DURATION_OPTIONS = [5, 10, 15, 30] as const;
+export type DurationMinutes = (typeof DURATION_OPTIONS)[number];
 
 // Common first and last names for realistic email generation
 const FIRST_NAMES = [
@@ -101,7 +89,6 @@ const LAST_NAMES = [
   "foster", "sanders", "ross", "powell", "sullivan", "russell", "ortiz",
 ];
 
-// Separators used between name parts
 const SEPARATORS = [".", "_", ""];
 
 function pick<T>(arr: T[]): T {
@@ -123,7 +110,7 @@ function generateRandomUsername(): string {
     const first = pick(FIRST_NAMES);
     const last = pick(LAST_NAMES);
     const sep = pick(SEPARATORS);
-    const addDigits = Math.random() > 0.35; // 65% chance of digits
+    const addDigits = Math.random() > 0.35;
     const digits = addDigits ? randDigits(1, 3) : "";
 
     const patterns = [
@@ -141,7 +128,6 @@ function generateRandomUsername(): string {
     }
     throw new Error("Invalid username generated");
   } catch {
-    // Failsafe fallback: generate basic random text to prevent code error
     const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
     let fallbackResult = "";
     for (let i = 0; i < 10; i++) {
@@ -151,216 +137,67 @@ function generateRandomUsername(): string {
   }
 }
 
-// Generate a random password
-function generateRandomPassword(length = 16): string {
-  const chars =
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%";
-  let result = "";
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
-
-// Helper to make fetch requests with custom headers and modern compatibility
-async function fetchMail(url: string, options: RequestInit = {}): Promise<Response> {
-  const headers = new Headers(options.headers || {});
-  if (!headers.has("Accept")) {
-    headers.set("Accept", "application/json");
-  }
-  if (!headers.has("User-Agent")) {
-    headers.set("User-Agent", USER_AGENT);
-  }
-
-  return fetch(url, {
-    ...options,
-    headers,
-  });
-}
-
-// Fallback domains list in case Mail.tm API is down or rate-limited on Vercel
-const FALLBACK_DOMAINS: Domain[] = [
-  { id: "fallback-1", domain: "somoj.com", isActive: true, isPrivate: false, createdAt: "", updatedAt: "" },
-  { id: "fallback-2", domain: "emalupe.com", isActive: true, isPrivate: false, createdAt: "", updatedAt: "" },
-  { id: "fallback-3", domain: "chapsi.com", isActive: true, isPrivate: false, createdAt: "", updatedAt: "" },
-];
-
-// Fetch available domains
-export async function getDomains(): Promise<Domain[]> {
-  try {
-    const res = await fetchMail(`${BASE_URL}/domains`);
-    if (!res.ok) {
-      console.warn(`Failed to fetch domains (status ${res.status}), using fallback list.`);
-      return FALLBACK_DOMAINS;
-    }
-    const data = await res.json();
-    const list = data["hydra:member"] || data.member || data;
-    if (Array.isArray(list) && list.length > 0) {
-      return list;
-    }
-    return FALLBACK_DOMAINS;
-  } catch (err) {
-    console.warn("Failed to fetch domains due to network error, using fallback list:", err);
-    return FALLBACK_DOMAINS;
-  }
-}
-
-// Create a new temp mail account
-export async function createAccount(
-  address: string,
-  password: string
-): Promise<Account> {
-  const res = await fetchMail(`${BASE_URL}/accounts`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ address, password }),
-  });
+// Fetch mailbox (list messages) for an address
+export async function getMessages(address: string): Promise<MessagePreview[]> {
+  const url = `${BASE_URL}/mailbox?address=${encodeURIComponent(address)}`;
+  const res = await fetch(url);
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(
-      `Failed to create account: ${res.status} - ${err.detail || err.message || "Unknown error"}`
-    );
+    if (res.status === 429) {
+      throw new Error("Rate limited. Please wait a moment and try again.");
+    }
+    throw new Error(`Failed to fetch messages: ${res.status}`);
   }
-  return res.json();
-}
-
-// Get auth token
-export async function getToken(
-  address: string,
-  password: string
-): Promise<TokenResponse> {
-  const res = await fetchMail(`${BASE_URL}/token`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ address, password }),
-  });
-  if (!res.ok) throw new Error(`Failed to get token: ${res.status}`);
-  return res.json();
-}
-
-// Fetch messages for authenticated account
-export async function getMessages(token: string): Promise<MessagePreview[]> {
-  const res = await fetchMail(`${BASE_URL}/messages`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  if (!res.ok) throw new Error(`Failed to fetch messages: ${res.status}`);
-  const data = await res.json();
-  return data["hydra:member"] || data.member || data;
+  const data: MailboxResponse = await res.json();
+  return data.messages || [];
 }
 
 // Fetch a single message with full content
 export async function getMessage(
-  token: string,
+  address: string,
   messageId: string
 ): Promise<MessageFull> {
-  const res = await fetchMail(`${BASE_URL}/messages/${messageId}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  if (!res.ok) throw new Error(`Failed to fetch message: ${res.status}`);
+  const url = `${BASE_URL}/message/${messageId}?mailbox=${encodeURIComponent(address)}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch message: ${res.status}`);
+  }
   return res.json();
 }
 
-// Delete an account
-export async function deleteAccount(
-  token: string,
-  accountId: string
-): Promise<void> {
-  const res = await fetchMail(`${BASE_URL}/accounts/${accountId}`, {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  if (!res.ok && res.status !== 204) {
-    throw new Error(`Failed to delete account: ${res.status}`);
-  }
-}
-
-// Delete a message
-export async function deleteMessage(
-  token: string,
-  messageId: string
-): Promise<void> {
-  const res = await fetchMail(`${BASE_URL}/messages/${messageId}`, {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  if (!res.ok && res.status !== 204) {
-    throw new Error(`Failed to delete message: ${res.status}`);
-  }
-}
-
-// Available duration options in minutes
-export const DURATION_OPTIONS = [5, 10, 15, 30] as const;
-export type DurationMinutes = (typeof DURATION_OPTIONS)[number];
-
-// High-level: create a full temp mail session
+// Create a new temp mail session
+// With GrabMail, there is no account creation step.
+// We just generate a random address on a public domain.
+// The address exists the moment mail reaches it.
 export async function createTempMailSession(
   durationMinutes: DurationMinutes = 5
 ): Promise<TempMailSession> {
-  // 1. Get available domains
-  const domains = await getDomains();
-  const activeDomains = domains.filter((d) => d.isActive && !d.isPrivate);
-  if (activeDomains.length === 0) {
-    throw new Error("No active domains available");
+  const username = generateRandomUsername();
+  const domain = "linqmail.com";
+  const address = `${username}@${domain}`;
+
+  // Verify the mailbox works by fetching it (also gets the alias)
+  const url = `${BASE_URL}/mailbox?address=${encodeURIComponent(address)}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Failed to initialize mailbox: ${res.status}`);
   }
+  const data: MailboxResponse = await res.json();
 
-  let attempts = 0;
-  const maxAttempts = 4;
-  let lastError: Error | null = null;
+  const expiresAt = Date.now() + durationMinutes * 60 * 1000;
 
-  while (attempts < maxAttempts) {
-    attempts++;
+  return {
+    address: data.address,
+    alias: data.alias,
+    expiresAt,
+    durationMinutes,
+  };
+}
 
-    // 2. Pick a random domain
-    const domain =
-      activeDomains[Math.floor(Math.random() * activeDomains.length)];
-
-    // 3. Generate random credentials
-    let username = generateRandomUsername();
-    if (attempts > 1) {
-      username += randDigits(2, 4);
-    }
-
-    const password = generateRandomPassword();
-    const address = `${username}@${domain.domain}`;
-
-    try {
-      // 4. Create account
-      const account = await createAccount(address, password);
-
-      // 5. Get auth token
-      const tokenData = await getToken(address, password);
-
-      // 6. Set expiry based on chosen duration
-      const expiresAt = Date.now() + durationMinutes * 60 * 1000;
-
-      return {
-        account,
-        token: tokenData.token,
-        password,
-        expiresAt,
-        durationMinutes,
-      };
-    } catch (err) {
-      console.warn(`Attempt ${attempts} failed to create account:`, err);
-      lastError = err instanceof Error ? err : new Error(String(err));
-
-      if (attempts < maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, 300 * attempts));
-      }
-    }
-  }
-
-  throw lastError || new Error("Failed to create temporary email after multiple attempts");
+// Delete account is not needed with GrabMail.
+// Messages auto-delete after 5 days.
+// We just clear localStorage on our side.
+export async function deleteAccount(): Promise<void> {
+  // No-op: GrabMail has no account deletion API.
+  // Messages expire automatically after 5 days.
+  return;
 }

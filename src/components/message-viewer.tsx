@@ -10,8 +10,28 @@ interface MessageViewerProps {
   onBack: () => void;
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleString([], {
+function parseTimestamp(timestamp: string | number): Date {
+  if (!timestamp) return new Date();
+
+  if (typeof timestamp === "number") {
+    return new Date(timestamp < 10000000000 ? timestamp * 1000 : timestamp);
+  }
+
+  const parsed = parseInt(timestamp, 10);
+  if (!isNaN(parsed) && /^\d+$/.test(timestamp)) {
+    return new Date(parsed < 10000000000 ? parsed * 1000 : parsed);
+  }
+
+  const date = new Date(timestamp);
+  if (isNaN(date.getTime())) {
+    return new Date();
+  }
+  return date;
+}
+
+function formatDate(dateVal: string | number): string {
+  const date = parseTimestamp(dateVal);
+  return date.toLocaleString([], {
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -51,10 +71,7 @@ export function MessageViewer({ message, isLoading, onBack }: MessageViewerProps
 
   if (!message) return null;
 
-  const htmlContent =
-    message.html && message.html.length > 0
-      ? message.html.join("")
-      : null;
+  const htmlContent = message.html && message.html.length > 0 ? message.html : null;
 
   const iframeSrcDoc = htmlContent
     ? `<!DOCTYPE html>
@@ -102,18 +119,11 @@ export function MessageViewer({ message, isLoading, onBack }: MessageViewerProps
         <div className="flex flex-wrap items-center gap-4 text-sm text-muted">
           <div className="flex items-center gap-1.5">
             <User className="w-3.5 h-3.5" />
-            <span>
-              {message.from?.name && (
-                <span className="text-foreground">{message.from.name} </span>
-              )}
-              <span className="text-muted-foreground">
-                &lt;{message.from?.address || "unknown"}&gt;
-              </span>
-            </span>
+            <span className="text-foreground">{message.from}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5" />
-            <span>{formatDate(message.createdAt)}</span>
+            <span>{formatDate(message.timestamp)}</span>
           </div>
         </div>
       </div>

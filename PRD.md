@@ -2,7 +2,7 @@
 
 ## Overview
 
-TempMail is a privacy-first, instant disposable email service built with Next.js. Users can generate a random temporary email address with one click and receive emails for a maximum of 5 minutes. No signup, no data stored — pure ephemeral communication.
+TempMail is a privacy-first, instant disposable email service built with Next.js. Users can generate a random temporary email address with one click and receive emails instantly. No signup, no data stored — pure ephemeral communication.
 
 ## Problem Statement
 
@@ -17,27 +17,28 @@ Existing solutions are cluttered with ads, require registration, or have poor UX
 ## Core Features
 
 ### 1. Instant Email Generation
-- **One-click generation**: User arrives → clicks "Generate" → gets a random temp email
-- **Random address**: Auto-generated username + available domain from Mail.tm
+- **One-click generation**: User arrives → clicks "Generate" → gets a random temp email on `@linqmail.com`
+- **Random address**: Auto-generated username using realistic human name formats + `linqmail.com` domain
 - **Copy to clipboard**: One-click copy of the email address
-- **Regenerate**: Option to generate a new address (destroys current session)
+- **Regenerate**: Option to generate a new address (destroys current session and redirects)
+- **Choosable Duration**: Users can select 5, 10, 15, or 30-minute sessions on landing page
 
 ### 2. Inbox with Real-Time Polling
-- **Auto-polling**: Check for new messages every 5 seconds
+- **Auto-polling**: Check for new messages every 10 seconds directly from the client browser
 - **Message list**: Shows sender, subject, preview text, and timestamp
 - **Message viewer**: Full email content rendered safely (HTML via sandboxed iframe)
 - **Empty state**: Clear UI when no messages have arrived yet
 
-### 3. 5-Minute Session Timer
+### 3. Session Timer
 - **Countdown display**: MM:SS digital timer with progress bar
 - **Visual urgency**: Green → Amber (< 1 min) → Red (< 30s) with pulse animation
-- **Auto-expiry**: Session automatically ends at 5 minutes
-- **Cleanup**: Account is deleted from Mail.tm on expiry
+- **Auto-expiry**: Session automatically ends on expiration, redirecting users to the home page with a clean alert message
 
 ### 4. Session Lifecycle
-- **Landing → Active → Expired** state machine
-- On expiry, user is shown "Session Expired" screen with option to generate new
-- Account is deleted server-side on expiry (best-effort cleanup)
+- **Home (/) → Mail (/mail)**:
+  - Homepage is fully static for SEO optimization.
+  - Active mailbox states are managed on `/mail` dynamically.
+  - Sessions persist in `localStorage` so refreshing does not lose active mailboxes.
 
 ## Tech Stack
 
@@ -48,84 +49,46 @@ Existing solutions are cluttered with ads, require registration, or have poor UX
 | Styling | Tailwind CSS v4 |
 | Icons | Lucide React |
 | Package Manager | Bun |
-| Email API | [Mail.tm](https://docs.mail.tm/) |
-| Deployment | Vercel (recommended) |
+| Email API | [GrabMail](https://grabmail.io/) |
+| Deployment | Vercel |
 
-## API Integration (Mail.tm)
+## API Integration (GrabMail)
 
-| Action | Endpoint | Auth |
-|--------|----------|------|
-| List domains | `GET /domains` | No |
-| Create account | `POST /accounts` | No |
-| Get auth token | `POST /token` | No |
-| List messages | `GET /messages` | Bearer |
-| Read message | `GET /messages/{id}` | Bearer |
-| Delete account | `DELETE /accounts/{id}` | Bearer |
+| Action | Endpoint |
+|--------|----------|
+| List messages | `GET /mailbox?address=X` |
+| Read message | `GET /message/{id}?mailbox=X` |
 
-**Rate limit**: 8 queries per second per IP.
-
-## Architecture
-
-```
-┌─────────────────────────────────────────┐
-│              Next.js App                │
-│                                         │
-│  ┌──────────┐     ┌──────────────────┐  │
-│  │  Client   │────▶│  API Routes      │  │
-│  │  (React)  │◀────│  /api/session    │  │
-│  │           │     │  /api/messages   │  │
-│  │  - Timer  │     │  /api/cleanup    │  │
-│  │  - Inbox  │     └────────┬─────────┘  │
-│  │  - Viewer │              │            │
-│  └──────────┘              │            │
-│                             ▼            │
-│                   ┌──────────────────┐   │
-│                   │  Mail.tm API     │   │
-│                   │  api.mail.tm     │   │
-│                   └──────────────────┘   │
-└─────────────────────────────────────────┘
-```
+**Rate limit**: 1 read/sec per address, 1200 requests/60s per client.
 
 ## User Flow
 
-1. User visits the site → sees landing page with "Generate" CTA
-2. Clicks "Generate Temporary Email"
-3. API route creates Mail.tm account → returns session with token + email
-4. Active view shows:
+1. User visits `/` → sees static landing page with duration CTA
+2. User selects duration and clicks "Generate Temporary Email"
+3. App redirects to `/mail?duration=X&new=true`
+4. Client browser requests mailbox from grabmail.io directly
+5. Active view shows:
    - Email address with copy button
-   - 5-minute countdown timer
-   - Inbox (polling every 5s)
-5. User copies email, uses it elsewhere
-6. Incoming emails appear in inbox automatically
-7. User clicks email to read full content
-8. At 5 minutes: session expires, account deleted, user shown expired screen
-9. User can generate a new email to start over
+   - Countdown timer matching selected duration
+   - Inbox (polling every 10s)
+6. User copies email, uses it elsewhere
+7. Incoming emails appear in inbox automatically
+8. User clicks email to read full content
+9. On expiration: user is redirected back to `/` showing a clean expiry warning banner
 
 ## Design Principles
 
-- **Dark theme**: Zinc-based dark UI with violet accent colors
+- **Semantic Themes**: Zinc light/dark backgrounds with brand accent `#ff5a54` (no gradients)
 - **Minimal**: No clutter, single-purpose tool
 - **Responsive**: Works on mobile and desktop
 - **Accessible**: Proper contrast, focus states, semantic HTML
-- **Fast**: No unnecessary dependencies, instant feedback
+- **Fast**: Static home page prerendering, no proxy API latency
 
 ## Non-Goals (Out of Scope)
 
 - User accounts / persistence
 - Sending emails
-- Attachment downloads
+- Attachment downloads (out of scope for UI, GrabMail supports up to 5MB)
 - Custom domains
-- Session extension beyond 5 minutes
 - Email forwarding
 - Multiple simultaneous inboxes
-
-## Success Metrics
-
-- Time to first email generated: < 3 seconds
-- Message delivery visibility: < 10 seconds after receipt
-- Zero data persistence after session expiry
-- Works on all modern browsers
-
-## Attribution
-
-As per Mail.tm terms of service, the app includes visible attribution linking to mail.tm.
